@@ -1,6 +1,12 @@
 const express = require('express');
 const User = require('../models/user');
+const auth = require('../middleware/auth');
 const router = new express.Router;
+
+// GET request for my profile
+router.get('/users/me', auth, async (req, res) => {
+  res.send(req.user)
+})
 
 // GET request for single user
 router.get('/users/:id', async (req, res) => {
@@ -15,16 +21,6 @@ router.get('/users/:id', async (req, res) => {
 
     res.send(user)
   } catch (err) {
-    res.status(500>send())
-  }
-})
-
-// GET request for all users
-router.get('/users', async (req, res) => {
-  try {
-    const users =  await User.find({});
-    res.send(users)
-  } catch (err) {
     res.status(500).send()
   }
 })
@@ -35,9 +31,25 @@ router.post('/users', async (req, res) => {
 
   try {
     await user.save();
-    res.status(201).send(user)
+    const token = await user.generateAuthToken();
+    res.status(201).send({ user, token})
   } catch (err) {
     res.status(400).send(err)
+  }
+})
+
+// POST request for logging in
+router.post('/users/login', async (req, res) => {
+  
+  try {
+    // findByCredentials is a custom class method defined in User model
+    const user = await User.findByCredentials(req.body.email, req.body.password)
+
+    // generateAuthToken is a custom instance method defined in User model
+    const token = await user.generateAuthToken();
+    res.send({ user, token })
+  } catch (err) {
+    res.status(400).send()
   }
 })
 
@@ -54,7 +66,11 @@ router.patch('/users/:id', async (req, res) => {
   }
 
   try {
-    const user = await User.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true })
+    const user = await User.findById(req.params.id);
+
+    updates.forEach((update) => user[update] = req.body[update])
+
+    await user.save()
 
     if (!user) {
       return res.status(404).send()
