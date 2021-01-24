@@ -6,21 +6,6 @@ const taskRouter = require('./routers/task');
 const app = express();
 const port = process.env.PORT || 3000
 
-// Custom middleware between a new request and running 
-// route handler
-// app.use((req, res, next) => {
-//   if (req.method === 'GET') {
-//     res.send('GET requests are disabled')
-//   } else {
-//     next will continue executing route handlers
-//     next()
-//   }
-// })
-
-// app.use((req, res, next) => {
-//   res.status(503).send('The site is under maintenance, try back soon')
-// })
-
 app.use(express.json());
 app.use(userRouter);
 app.use(taskRouter);
@@ -29,3 +14,20 @@ app.use(taskRouter);
 app.listen(port, () => {
   console.log('Server is up on port ' + port)
 })
+
+const Task = require('./models/task')
+const User = require('./models/user')
+
+const main = async () => {
+  // Associate tasks by their owner
+  // const task = await Task.findById('600cb241f4a1f417805db38a')
+  // await task.populate('owner').execPopulate()
+  // console.log(task.owner)
+
+  // associate owner by their tasks
+  const user = await User.findById('600cb18899d2a916f90ae47d')
+  await user.populate('tasks').execPopulate()
+  console.log(user.tasks)
+}
+
+main()

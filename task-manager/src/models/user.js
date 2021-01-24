@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const validator = require('validator');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const Task = require('./task');
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -49,8 +50,16 @@ const userSchema = new mongoose.Schema({
   }]
 })
 
+// For implementing associations between models 
+// (Tasks doesn't actually live on the User model)
+userSchema.virtual('tasks', {
+  ref: 'Task',
+  localField: '_id',
+  foreignField: 'owner'
+})
+
 // Custom instance method for generating JSON Web Token
-userSchema.methods.generateAuthToken = async function () {
+userSchema.methods.generateAuthToken = async function() {
   const user = this;
   const token = jwt.sign({ _id: user._id.toString() }, 'thisisfun');
 
@@ -58,6 +67,19 @@ userSchema.methods.generateAuthToken = async function () {
   await user.save()
   
   return token
+}
+
+// Instance method to expose particular key/value pairs
+// when sending back resposnes
+// "toJSON" is a built in instance method
+userSchema.methods.toJSON = function() {
+  const user = this;
+  const userObj = user.toObject()
+
+  delete userObj.password
+  delete userObj.tokens
+
+  return userObj
 }
 
 // Custom class method on model for validating user login
@@ -77,8 +99,8 @@ userSchema.statics.findByCredentials = async (email, password) => {
   return user
 }
 
-// Before saving to database...
-userSchema.pre('save', async function (next) {
+// Hashes password before User is saved
+userSchema.pre('save', async function(next) {
   const user = this;
 
   // if password is being changed, set password to hashed password
@@ -86,6 +108,13 @@ userSchema.pre('save', async function (next) {
     user.password = await bcrypt.hash(user.password, 8)
   }
 
+  next()
+})
+
+// Delete all user's tasks when user is deleted
+userSchema.pre('remove', async function(next) {
+  const user = this;
+  await Task.deleteMany({ owner: user._id })
   next()
 })
 
