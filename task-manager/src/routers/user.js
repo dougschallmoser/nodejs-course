@@ -1,7 +1,23 @@
 const express = require('express');
 const User = require('../models/user');
 const auth = require('../middleware/auth');
+const multer = require('multer');
 const router = new express.Router;
+
+// Multer library for file uploads
+const upload = multer({
+  dest: 'avatars',
+  limits: {
+    fileSize: 1000000
+  }, 
+  fileFilter(req, file, callback) {
+    if (!file.originalname.match(/\.(jpg|jpeg|png)/)) {
+      return callback(new Error('Please upload an image'))
+    } 
+
+    callback(undefined, true)
+  }
+})
 
 // GET request for my profile
 router.get('/users/me', auth, async (req, res) => {
@@ -55,6 +71,13 @@ router.post('/users/logoutAll', auth, async (req, res) => {
   } catch (err) {
     res.status(500).send()
   }
+})
+
+// POST request for upload avatar photo
+router.post('/users/me/avatar', upload.single('avatar'), (req, res) => {
+  res.send()
+}, (error, req, res, next) => {
+  res.status(400).send({ error: error.message })
 })
 
 // PATCH request for updating a user
