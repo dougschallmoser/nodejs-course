@@ -1,12 +1,12 @@
 const express = require('express');
 const User = require('../models/user');
 const auth = require('../middleware/auth');
+const sharp = require('sharp');
 const multer = require('multer');
 const router = new express.Router;
 
 // Multer library for file uploads
 const upload = multer({
-  dest: 'avatars',
   limits: {
     fileSize: 1000000
   }, 
@@ -22,6 +22,23 @@ const upload = multer({
 // GET request for my profile
 router.get('/users/me', auth, async (req, res) => {
   res.send(req.user)
+})
+
+// GET request for fetching user avatar
+router.get('/users/:id/avatar', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id)
+
+    if (!user || !user.avatar) {
+      throw new Error()
+    }
+
+    // sets and sends binary data response as png image
+    res.set('Content-Type', 'image/png')
+    res.send(user.avatar)
+  } catch (err) {
+    res.status(400).send()
+  }
 })
 
 // POST request for creating a new User
@@ -73,8 +90,12 @@ router.post('/users/logoutAll', auth, async (req, res) => {
   }
 })
 
-// POST request for upload avatar photo
-router.post('/users/me/avatar', upload.single('avatar'), (req, res) => {
+// POST request for uploading avatar photo
+router.post('/users/me/avatar', auth, upload.single('avatar'), async (req, res) => {
+  // sharp used to resize file and convert to png format
+  const buffer = await sharp(req.file.buffer).resize({ width: 250, height: 250 }).png().toBuffer()
+  req.user.avatar = buffer
+  await req.user.save()
   res.send()
 }, (error, req, res, next) => {
   res.status(400).send({ error: error.message })
@@ -105,6 +126,17 @@ router.delete('/users/me', auth, async (req, res) => {
   try {
     await req.user.remove()
     res.send(req.user)
+  } catch (err) {
+    return res.status(500).send()
+  }
+})
+
+// DELETE request for removing user avatar
+router.delete('/users/me/avatar', auth, async (req, res) => {
+  try {
+    req.user.avatar = undefined;
+    await req.user.save()
+    res.send()
   } catch (err) {
     return res.status(500).send()
   }
