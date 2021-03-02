@@ -1,41 +1,19 @@
 // supertest library used for testing requests
 const request = require('supertest');
-const jwt = require('jsonwebtoken');
-const mongoose = require('mongoose');
 const app = require('../src/app');
 const User = require('../src/models/User');
+const { userOneId, userOne, userTwo, populateDatabase } = require('./fixtures/db');
 
-
-// test user for logging in
-const userOneId = new mongoose.Types.ObjectId();
-const userOne = {
-  _id: userOneId,
-  name: 'Erin',
-  email: 'erin@gmail.com',
-  password: 'SoCoool66!',
-  tokens: [{
-    token: jwt.sign({ _id: userOneId }, process.env.JWT_SECRET)
-  }]
-}
-
-// test user for signing up
-const userTwo = {
-  name: 'Doug',
-  email: 'doug@gmail.com',
-  password: 'MyPass777!'
-}
-
-// Deletes all users in test database before running tests
-// Adds a new user to be tested for logging in
-beforeEach(async () => {
-  await User.deleteMany()
-  await new User(userOne).save()
-})
+beforeEach(populateDatabase)
 
 test('Should signup a new user', async () => {
   const response = await request(app)
     .post('/users')
-    .send(userTwo)
+    .send({
+      name: 'Sam',
+      email: 'sam@gmail.com',
+      password: 'MyPass777!'
+    })
     .expect(201)
 
   // Assert that the user was saved to database
@@ -45,8 +23,8 @@ test('Should signup a new user', async () => {
   // Assertions about the response
   expect(response.body).toMatchObject({
     user: {
-      name: 'Doug',
-      email: 'doug@gmail.com'
+      name: 'Sam',
+      email: 'sam@gmail.com'
     },
     token: user.tokens[0].token
   })
